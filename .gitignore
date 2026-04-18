@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+gym/generated/_gen_*.py
+logs/
+checkpoints/
+curriculum_state.json
+wandb/
+.vscode/
+.idea/
