@@ -5,7 +5,7 @@ vllm>=0.6.0
 fastapi
 uvicorn[standard]
 httpx
-anthropic
+openai
 python-dotenv
 torch>=2.2.0
 pydantic>=2.0

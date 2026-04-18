@@ -57,18 +57,18 @@ class LLMJudge:
         resolution_model: str | None = None,
         api_key: str | None = None,
     ) -> None:
-        self._api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        self._api_key = api_key or os.getenv("OPENAI_API_KEY")
         self._client: Any | None = None
-        self.step_model = step_model or os.getenv("JUDGE_MODEL", "claude-haiku-4-5-20251001")
-        self.resolution_model = resolution_model or os.getenv("RESOLUTION_MODEL", "claude-sonnet-4-6")
+        self.step_model = step_model or os.getenv("JUDGE_MODEL", "gpt-4.1-mini")
+        self.resolution_model = resolution_model or os.getenv("RESOLUTION_MODEL", "gpt-4.1")
         self._step_prompt = _load_prompt("judge_step.txt")
         self._resolution_prompt = _load_prompt("judge_resolution.txt")
 
     @property
     def client(self) -> Any:
         if self._client is None:
-            from anthropic import Anthropic
-            self._client = Anthropic(api_key=self._api_key)
+            from openai import OpenAI
+            self._client = OpenAI(api_key=self._api_key)
         return self._client
 
     def evaluate_step(
@@ -89,14 +89,16 @@ class LLMJudge:
             'Return JSON: {"score": float in [-1, 1], "feedback": "one sentence"}'
         )
         try:
-            resp = self.client.messages.create(
+            resp = self.client.chat.completions.create(
                 model=self.step_model,
                 max_tokens=256,
                 temperature=0.3,
-                system=self._step_prompt,
-                messages=[{"role": "user", "content": user}],
+                messages=[
+                    {"role": "system", "content": self._step_prompt},
+                    {"role": "user", "content": user},
+                ],
             )
-            text = resp.content[0].text if resp.content else ""
+            text = resp.choices[0].message.content or ""
         except Exception as exc:
             logger.warning("judge step api error: %s", exc)
             return StepScore(score=0.0, feedback=f"judge_error: {exc}")
@@ -123,14 +125,16 @@ class LLMJudge:
             'Return JSON: {"score": float in [0, 5], "feedback": "one sentence"}'
         )
         try:
-            resp = self.client.messages.create(
+            resp = self.client.chat.completions.create(
                 model=self.resolution_model,
                 max_tokens=256,
                 temperature=0.1,
-                system=self._resolution_prompt,
-                messages=[{"role": "user", "content": user}],
+                messages=[
+                    {"role": "system", "content": self._resolution_prompt},
+                    {"role": "user", "content": user},
+                ],
             )
-            text = resp.content[0].text if resp.content else ""
+            text = resp.choices[0].message.content or ""
         except Exception as exc:
             logger.warning("judge resolution api error: %s", exc)
             return ResolutionScore(score=0.0, feedback=f"judge_error: {exc}")

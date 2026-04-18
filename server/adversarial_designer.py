@@ -38,17 +38,17 @@ class AdversarialDesigner:
         model: str | None = None,
         api_key: str | None = None,
     ) -> None:
-        self._api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        self._api_key = api_key or os.getenv("OPENAI_API_KEY")
         self._client: Any | None = None
-        self.model = model or os.getenv("DESIGNER_MODEL", "claude-sonnet-4-6")
+        self.model = model or os.getenv("DESIGNER_MODEL", "gpt-4.1")
         self._prompt = (_PROMPTS_DIR / "designer.txt").read_text(encoding="utf-8")
         _GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
     @property
     def client(self) -> Any:
         if self._client is None:
-            from anthropic import Anthropic
-            self._client = Anthropic(api_key=self._api_key)
+            from openai import OpenAI
+            self._client = OpenAI(api_key=self._api_key)
         return self._client
 
     def _build_user_message(
@@ -79,14 +79,16 @@ class AdversarialDesigner:
         weak_spots: list[str],
     ) -> str | None:
         try:
-            resp = self.client.messages.create(
+            resp = self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=2048,
                 temperature=0.7,
-                system=self._prompt,
-                messages=[{"role": "user", "content": self._build_user_message(bug_type, difficulty, weak_spots)}],
+                messages=[
+                    {"role": "system", "content": self._prompt},
+                    {"role": "user", "content": self._build_user_message(bug_type, difficulty, weak_spots)},
+                ],
             )
-            text = resp.content[0].text if resp.content else ""
+            text = resp.choices[0].message.content or ""
         except Exception as exc:
             logger.warning("designer api error: %s", exc)
             return None
